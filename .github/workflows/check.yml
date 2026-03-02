@@ -1,33 +1,32 @@
 name: Ticket Checker
 
 on:
-  workflow_dispatch: # manuelt trigger
+  workflow_dispatch:  # manuelt trigger
   schedule:
-    - cron: '*/10 * * * *' # kjør hvert 10. minutt (valgfritt)
+    - cron: "*/15 * * * *"  # kjør hvert 15. minutt
 
 jobs:
   check_tickets:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
 
-      - name: Set up Python
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: 3.11
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install -r amsterdam_alarm/requirements.txt
 
       - name: Run ticket checker
-        env:
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_FROM: ${{ secrets.TWILIO_FROM }}
-          TWILIO_TO: ${{ secrets.TWILIO_TO }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python amsterdam_alarm/ticket_checker.py
+        run: python amsterdam_alarm/ticket_checker.py
+
+      - name: Push log to gh-pages
+        uses: ad-m/github-push-action@v0.5.0
+        with:
+          branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          force: true
+          directory: log  # kun log-mappen
