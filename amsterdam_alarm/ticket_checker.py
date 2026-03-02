@@ -1,90 +1,36 @@
-import os
+import requests
 from datetime import datetime
-from playwright.sync_api import sync_playwright
-from twilio.rest import Client
+from bs4 import BeautifulSoup
+import os
 
-# -------------------------------
-# Konfigurasjon
-# -------------------------------
-URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
-LOG_DIR = "log"
-LOG_FILE = os.path.join(LOG_DIR, "ticket_checker.log")
+# --- Konfigurasjon ---
+LOG_FILE = "log/ticket_checker.log"
+URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"  # Sett inn riktig billett-URL
 
-# Twilio (valgfritt)
-TWILIO_ENABLED = True
-TWILIO_ACCOUNT_SID = "your_account_sid"
-TWILIO_AUTH_TOKEN = "your_auth_token"
-TWILIO_FROM = "+1234567890"
-TWILIO_TO = "+9876543210"
+# --- Hent nettsiden ---
+response = requests.get(URL)
+if response.status_code != 200:
+    print(f"Feil ved henting: {response.status_code}")
+    exit(1)
 
-# -------------------------------
-# Opprett log-mappen om nødvendig
-# -------------------------------
-os.makedirs(LOG_DIR, exist_ok=True)
+soup = BeautifulSoup(response.text, "html.parser")
 
-# -------------------------------
-# Funksjon for logging
-# -------------------------------
-def log_status(available, sold):
-    timestamp = datetime.utcnow().strftime("%a %b %d %H:%M:%S UTC %Y")
-    log_line = f"{timestamp} | Available: {available} | Sold: {sold}\n"
-    
-    # Skriv til loggfil
-    with open(LOG_FILE, "a") as f:
-        f.write(log_line)
-    
-    # Print til konsoll
-    print(log_line)
+# --- Finn antall Available og Sold ---
+# Tilpass selectorene under til hvordan nettsiden viser tallene
+available_elem = soup.find("div", class_="available")
+sold_elem = soup.find("div", class_="sold")
 
-# -------------------------------
-# Funksjon for å hente billettstatus
-# -------------------------------
-def check_tickets():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(URL)
-        
-        # Eksempel på hvordan vi henter antall billetter
-        # Tilpass selektorer etter nettsidens HTML
-        available_text = page.query_selector("selector_for_available").inner_text()
-        sold_text = page.query_selector("selector_for_sold").inner_text()
-        
-        # Konverter til tall
-        available = int(available_text.strip())
-        sold = int(sold_text.strip())
-        
-        browser.close()
-        return available, sold
+available = available_elem.text.strip() if available_elem else "0"
+sold = sold_elem.text.strip() if sold_elem else "0"
 
-# -------------------------------
-# Funksjon for å sende SMS
-# -------------------------------
-def send_sms(message):
-    if not TWILIO_ENABLED:
-        return
-    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    client.messages.create(
-        body=message,
-        from_=TWILIO_FROM,
-        to=TWILIO_TO
-    )
+# --- Lag timestamp ---
+timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-# -------------------------------
-# Hovedprogram
-# -------------------------------
-def main():
-    try:
-        available, sold = check_tickets()
-        log_status(available, sold)
-        
-        # Varsle hvis billetter tilgjengelig
-        if available > 0:
-            send_sms(f"Billetter tilgjengelig! Available: {available}, Sold: {sold}")
-            
-    except Exception as e:
-        print(f"Feil under sjekk: {e}")
-        log_status(available=0, sold=0)
+# --- Sørg for at log-mappen finnes ---
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
-if __name__ == "__main__":
-    main()
+# --- Skriv til logg ---
+with open(LOG_FILE, "a", encoding="utf-8") as f:
+    f.write(f"{timestamp} | Available: {available} | Sold: {sold}\n")
+
+print(f"Logget: {timestamp} | Available: {available} | Sold: {sold}")
