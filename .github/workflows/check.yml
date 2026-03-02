@@ -3,34 +3,36 @@ name: Check Tickets
 on:
   schedule:
     - cron: "*/5 * * * *"  # kjører hvert 5. minutt
-  workflow_dispatch:       # lar deg starte workflow manuelt
+  workflow_dispatch:       # gjør det mulig å kjøre manuelt
 
 jobs:
   check:
     runs-on: ubuntu-latest
 
     steps:
-      # Sjekker ut repo
+      # 1️⃣ Hent repoet
       - uses: actions/checkout@v4
 
-      # Installer Python
+      # 2️⃣ Sett opp Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # Installer Python dependencies
-      - name: Install dependencies
+      # 3️⃣ Installer Python-avhengigheter
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      # Installer Playwright og systemavhengigheter
-      - name: Install Playwright
-        uses: microsoft/playwright-github-action@v1
+      # 4️⃣ Installer Playwright og nødvendige nettlesere
+      - name: Install Playwright browsers & dependencies
+        run: |
+          pip install playwright==1.40.0
+          npx playwright install --with-deps
 
-      # Debug: liste filer for å bekrefte struktur
+      # 5️⃣ Valgfritt: list filer for debugging
       - name: List files
         run: ls -R
 
-      # Kjør ticket_checker.py
+      # 6️⃣ Kjør ticket_checker.py med secrets
       - name: Run ticket checker
         run: python3 amsterdam_alarm/ticket_checker.py
         env:
