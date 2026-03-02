@@ -1,52 +1,48 @@
-name: Ticket Checker
+name: Check Tickets
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Hver 5. minutt UTC
-  workflow_dispatch:     # Manuell trigger
+    # UTC: every 5 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:  # for manual runs
 
 jobs:
   check_tickets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install playwright==1.40.0 twilio
-        python -m playwright install --with-deps
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps=false
 
-    - name: Run ticket checker
-      env:
-        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-        FROM_NUMBER: ${{ secrets.TWILIO_FROM }}
-        TO_NUMBER: ${{ secrets.TWILIO_TO }}
-      run: |
-        mkdir -p log
-        python check_tickets.py
+      - name: Run ticket checker
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
+        run: |
+          mkdir -p log
+          python ticket_checker.py >> log/ticket_checker.log 2>&1
 
-    - name: Commit log to gh-pages
-      env:
-        GH_PAT: ${{ secrets.GH_PAT }}
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git checkout -B gh-pages
-        cp log/ticket_checker.log log/ticket_checker.log.tmp || true
-        mv log/ticket_checker.log.tmp log/ticket_checker.log
-        git add log/ticket_checker.log
-        git commit -m "Update ticket log $(date -u)"
-        git push -f https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git gh-pages
-
-    - name: Output log URL
-      run: |
-        echo "Log is available at https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY}/log/ticket_checker.log"
+      - name: Commit log to gh-pages
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B gh-pages
+          mkdir -p log
+          cp log/ticket_checker.log log/ticket_checker.log
+          git add log/ticket_checker.log
+          git commit -m "Update ticket log $(date -u)"
+          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} gh-pages --force
