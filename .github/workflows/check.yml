@@ -1,36 +1,35 @@
 name: Ticket Checker
 
 on:
-  workflow_dispatch:  # gir manuell trigger
+  workflow_dispatch:    # manuelt triggbart
   schedule:
-    - cron: '*/5 * * * *'  # kjører hvert 5. minutt, kan justeres
+    - cron: "*/5 * * * *"  # automatisk hvert 5. minutt
 
 jobs:
   check_tickets:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Set safe directory
-        run: git config --global --add safe.directory /github/workspace
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+    - name: Install dependencies
+      run: pip install -r requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+    - name: Install Playwright browsers
+      run: playwright install
 
-      - name: Run ticket checker
-        run: python amsterdam_alarm/ticket_checker.py
+    - name: Run ticket checker
+      run: python amsterdam_alarm/ticket_checker.py
 
-      - name: Commit & push log to GitHub Pages
-        uses: ad-m/github-push-action@v0.5.0
-        with:
-          branch: gh-pages
-          directory: log
-          commit-message: "Update ticket log"
-          force: true
+    - name: Commit and push log (gh-pages)
+      uses: ad-m/github-push-action@v0.5.0
+      with:
+        branch: gh-pages
+        directory: log
+        force: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
