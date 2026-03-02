@@ -11,7 +11,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
+      
+    - name: Ensure log directory exists
+      run: mkdir -p log
+      
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -25,9 +28,7 @@ jobs:
 
     - name: Run ticket checker
       run: python amsterdam_alarm/ticket_checker.py
-      
-    - name: Ensure log directory exists
-      run: mkdir -p log
+
     - name: Allow Git safe directory
       run: git config --global --add safe.directory /github/workspace
   
