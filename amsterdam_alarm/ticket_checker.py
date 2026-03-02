@@ -13,7 +13,7 @@ from_number = "+1234567890"
 to_number = "+0987654321"
 
 # URL for billettsiden
-ticket_url = https://atleta.cc/e/nhIVWn50Rcez/resale
+ticket_url = "https://atleta.cc/e/nhIVWn50Rcez/resale"
 # URL for loggfil (GitHub Pages)
 log_url = "https://oyran1970.github.io/amsterdam_alarm/log/ticket_checker.log"
 
