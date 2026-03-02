@@ -2,8 +2,8 @@ name: Check Tickets
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
-  workflow_dispatch:
+    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
+  workflow_dispatch:       # gjør det mulig å kjøre manuelt
 
 jobs:
   check:
@@ -20,7 +20,7 @@ jobs:
       - run: playwright install --with-deps
 
       - name: Run ticket checker
-        run: python amsterdam_alarm/ticket_checker.py
+        run: python3 amsterdam_alarm/ticket_checker.py
         env:
           TWILIO_SID: ${{ secrets.TWILIO_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
