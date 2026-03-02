@@ -1,13 +1,13 @@
 name: Ticket Checker
 
 on:
+  workflow_dispatch:  # lar deg kjøre manuelt fra GitHub
   schedule:
-    - cron: '*/5 * * * *'  # kjører hvert 5. minutt
-  workflow_dispatch:
+    - cron: '*/5 * * * *'  # kjør hvert 5. minutt (kan justeres)
 
 jobs:
   check_tickets:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -18,24 +18,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Upgrade pip and install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
 
-      - name: Install Playwright browsers
-        run: python -m playwright install
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Run ticket checker
-        run: python ./ticket_checker.py
+        run: python ticket_checker.py
 
-      - name: Commit and push log to gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push log
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B gh-pages
           git add log/ticket_checker.log
-          git commit -m "Update ticket log $(date -u '+%a %b %d %H:%M:%S UTC %Y')"
-          git push -f origin gh-pages
+          git commit -m "Update ticket log $(date -u '+%a %b %d %H:%M:%S UTC %Y')" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages --force
