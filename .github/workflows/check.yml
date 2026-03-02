@@ -11,7 +11,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      
+    
+     - name: Allow Git safe directory
+       run: git config --global --add safe.directory /github/workspace 
+    
     - name: Ensure log directory exists
       run: mkdir -p log
       
@@ -29,9 +32,6 @@ jobs:
     - name: Run ticket checker
       run: python amsterdam_alarm/ticket_checker.py
 
-    - name: Allow Git safe directory
-      run: git config --global --add safe.directory /github/workspace
-  
     - name: Commit and push log (gh-pages)
       uses: ad-m/github-push-action@v0.5.0
       with:
