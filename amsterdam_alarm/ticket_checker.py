@@ -1,4 +1,34 @@
-import requests
+imimport requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+import os
+
+# --- Konfigurasjon ---
+URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
+LOG_DIR = "log"
+LOG_FILE = os.path.join(LOG_DIR, "ticket_checker.log")
+
+# --- Hent siden ---
+response = requests.get(URL)
+response.raise_for_status()
+soup = BeautifulSoup(response.text, "html.parser")
+
+# --- Finn billetter ---
+# Her må du justere selectors til det riktige HTML-elementet
+available_tag = soup.select_one("#available")  # eksempel
+sold_tag = soup.select_one("#sold")           # eksempel
+
+available = int(available_tag.text.strip()) if available_tag else 0
+sold = int(sold_tag.text.strip()) if sold_tag else 0
+
+# --- Lag logg-mappen hvis den ikke finnes ---
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# --- Skriv til logg ---
+with open(LOG_FILE, "a") as f:
+    f.write(f"{datetime.utcnow().isoformat()} | Available: {available} | Sold: {sold}\n")
+
+print(f"Logged: {available} available, {sold} sold")port requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 import os
