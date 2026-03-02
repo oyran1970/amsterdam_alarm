@@ -1,41 +1,45 @@
-name: Check Tickets
+from playwright.sync_api import sync_playwright
+from twilio.rest import Client
+import os
 
-on:
-  schedule:
-    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
-  workflow_dispatch:       # gjør det mulig å starte manuelt
+print("Ticket checker starter...")
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
+# --- Konfigurasjon ---
+TICKET_URL = "https://www.tcsamsterdammarathon.eu/ticket-resale"
 
-    steps:
-      # Sjekk ut repo
-      - uses: actions/checkout@v4
+# Hent Twilio-miljøvariabler
+sid = os.getenv("TWILIO_SID")
+token = os.getenv("TWILIO_AUTH_TOKEN")
+from_number = os.getenv("TWILIO_NUMBER")
+to_number = os.getenv("YOUR_NUMBER")
 
-      # Sett opp Python
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+# --- Sjekk tickets ---
+try:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(TICKET_URL)
+        
+        # Sjekk om "tickets available" finnes på siden
+        if "Tickets available" in page.content():
+            print("Billetter er tilgjengelige!")
 
-      # Installer dependencies
-      - run: pip install -r requirements.txt
+            # --- Send SMS via Twilio ---
+            if all([sid, token, from_number, to_number]):
+                client = Client(sid, token)
+                message = client.messages.create(
+                    body="Amsterdam Maraton: Billetter tilgjengelige! Gå til " + TICKET_URL,
+                    from_=from_number,
+                    to=to_number
+                )
+                print(f"SMS sendt, SID: {message.sid}")
+            else:
+                print("Twilio-miljøvariabler mangler, SMS ikke sendt")
+        else:
+            print("Ingen billetter tilgjengelige")
+        
+        browser.close()
+except Exception as e:
+    print(f"Feil under ticket-sjekk: {e}")
 
-      # Installer Playwright-browsere
-      - name: Install Playwright browsers
-        run: python -m playwright install
-
-      # Installer nødvendige Ubuntu-dependencies
-      - name: Install Playwright system dependencies
-        run: sudo apt-get update && sudo apt-get install -y \
-          libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-          libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpangocairo-1.0-0
-
-      # Kjør ticket_checker.py
-      - name: Run ticket checker
-        run: /usr/bin/python3 amsterdam_alarm/ticket_checker.py
-        env:
-          TWILIO_SID: ${{ secrets.TWILIO_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
-          YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
+print("Ticket checker ferdig")
