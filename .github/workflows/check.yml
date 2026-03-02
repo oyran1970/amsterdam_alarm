@@ -1,33 +1,37 @@
 name: Ticket Checker
 
 on:
-  workflow_dispatch:  # lar deg kjøre manuelt
+  workflow_dispatch: # lar deg kjøre workflow manuelt
 
 jobs:
-  check-tickets:
+  update_log:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        persist-credentials: false
+      # Sjekk ut repoet
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+      # Sett opp Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests beautifulsoup4
+      # Installer dependencies
+      - name: Install dependencies
+        run: pip install -r amsterdam_alarm/requirements.txt
 
-    - name: Run ticket checker
-      run: python amsterdam_alarm/ticket_checker.py
+      # Kjør ticket_checker script
+      - name: Run ticket checker
+        run: python amsterdam_alarm/ticket_checker.py
 
-    - name: Commit and push log
-      uses: ad-m/github-push-action@v0.5.0
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: gh-pages
+      # Konfigurer safe directory for git
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory /github/workspace
+
+      # Push eventuelle logg-oppdateringer til gh-pages
+      - name: Push log changes
+        uses: ad-m/github-push-action@v0.5.0
+        with:
+          branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
