@@ -27,7 +27,7 @@ jobs:
       run: python amsterdam_alarm/ticket_checker.py
 
     - name: Commit and push log
-      uses: ad-m/github-push-action@v0.6
+      uses: ad-m/github-push-action@v0.10.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: gh-pages
