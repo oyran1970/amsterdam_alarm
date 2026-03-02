@@ -2,7 +2,7 @@ name: Check Tickets
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # kjører hvert 5. minutt
+    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
   workflow_dispatch:       # gjør det mulig å kjøre manuelt
 
 jobs:
@@ -10,29 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Hent repoet
       - uses: actions/checkout@v4
 
-      # 2️⃣ Sett opp Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 3️⃣ Installer Python-avhengigheter
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
+      - run: playwright install --with-deps
 
-      # 4️⃣ Installer Playwright og nødvendige nettlesere
-      - name: Install Playwright browsers & dependencies
-        run: |
-          pip install playwright==1.40.0
-          npx playwright install --with-deps
-
-      # 5️⃣ Valgfritt: list filer for debugging
-      - name: List files
-        run: ls -R
-
-      # 6️⃣ Kjør ticket_checker.py med secrets
       - name: Run ticket checker
         run: python3 amsterdam_alarm/ticket_checker.py
         env:
@@ -40,3 +26,9 @@ jobs:
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
           YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
+
+      - name: Upload log
+        uses: actions/upload-artifact@v3
+        with:
+          name: ticket_checker_log
+          path: amsterdam_alarm/ticket_checker.log
