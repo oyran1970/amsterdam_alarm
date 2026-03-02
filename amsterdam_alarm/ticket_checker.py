@@ -1,36 +1,36 @@
-name: Ticket Checker
+from datetime import datetime
+import requests
+from bs4 import BeautifulSoup
+from twilio.rest import Client
 
-on:
-  workflow_dispatch:  # gir manuell trigger
-  schedule:
-    - cron: '*/5 * * * *'  # kjører hvert 5. minutt, kan justeres
+# Dine variabler
+twilio_sid = "TWILIO_ACCOUNT_SID"
+twilio_token = "TWILIO_AUTH_TOKEN"
+twilio_from = "+1234567890"
+twilio_to = "+47XXXXXXXX"
+log_file = "log/ticket_checker.log"
 
-jobs:
-  check_tickets:
-    runs-on: ubuntu-latest
+# Hent siden
+url = "https://atleta.cc/e/nhIVWn50Rcez/resale"
+resp = requests.get(url)
+soup = BeautifulSoup(resp.text, "html.parser")
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+# Finn tilgjengelige og solgte billetter
+available = int(soup.select_one(".available").text.strip())
+sold = int(soup.select_one(".sold").text.strip())
 
-      - name: Set safe directory
-        run: git config --global --add safe.directory /github/workspace
+# Legg til logglinje
+timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+with open(log_file, "a") as f:
+    f.write(f"{timestamp}, Available: {available}, Sold: {sold}\n")
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+# Push til GitHub Pages skjer via workflow
 
-      - name: Install dependencies
-        run: pip install -r amsterdam_alarm/requirements.txt
-
-      - name: Run ticket checker
-        run: python amsterdam_alarm/ticket_checker.py
-
-      - name: Commit & push log to GitHub Pages
-        uses: ad-m/github-push-action@v0.5.0
-        with:
-          branch: gh-pages
-          directory: log
-          commit-message: "Update ticket log"
-          force: true
+# Send SMS hvis billetter tilgjengelig
+if available > 0:
+    client = Client(twilio_sid, twilio_token)
+    client.messages.create(
+        body=f"Tickets available: {available}",
+        from_=twilio_from,
+        to=twilio_to
+    )
