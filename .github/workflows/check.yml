@@ -2,61 +2,62 @@ name: Check Tickets
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # hvert 5. minutt
-  workflow_dispatch:
+    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
+  workflow_dispatch:       # gjør det mulig å kjøre manuelt
 
 jobs:
   check:
     runs-on: ubuntu-latest
 
     steps:
-      # Sjekk ut repo
+      # 1. Hent repo
       - uses: actions/checkout@v4
 
-      # Sett opp Python 3.11
+      # 2. Sett opp Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # Installer avhengigheter
-      - run: pip install -r requirements.txt
-
-      # Installer Playwright og nødvendige systembiblioteker
+      # 3. Installer dependencies
       - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
           pip install playwright
-          npx playwright install --with-deps
+          playwright install --with-deps
 
-      # Lag loggmappen hvis den ikke finnes
+      # 4. Lag log-mappe hvis ikke finnes
       - run: mkdir -p log
 
-      # Kjør ticket_checker.py og logg output
+      # 5. Test GH_PAT fungerer
+      - name: Test GH_PAT push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "actions@github.com"
+          echo "Test push $(date)" > log/test_push.txt
+          git add log/test_push.txt
+          git commit -m "Test push using GH_PAT" || echo "No changes to commit"
+          git push -f https://$GH_PAT@github.com/oyran1970/amsterdam_alarm.git gh-pages || echo "Test push failed"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+
+      # 6. Kjør ticket checker og logg resultat
       - name: Run ticket checker
         run: |
-          python3 amsterdam_alarm/ticket_checker.py \
-            --log log/ticket_checker.log
+          python amsterdam_alarm/ticket_checker.py >> log/ticket_checker.log 2>&1
         env:
           TWILIO_SID: ${{ secrets.TWILIO_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
           YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
 
-      # List filer for debugging (valgfritt)
-      - name: List repo files
-        run: ls -R
-
-      # Deploy log til gh-pages
-      - name: Deploy log to GitHub Pages
+      # 7. Push log til gh-pages
+      - name: Push log to gh-pages
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "actions@github.com"
           git checkout -B gh-pages
-
-          # Sørg for at loggfilen eksisterer
-          mkdir -p log
-          touch log/ticket_checker.log
-
           git add log/ticket_checker.log
-          git commit -m "Update ticket log" || echo "No changes to commit"
+          git commit -m "Update ticket log $(date)" || echo "No changes to commit"
           git push -f https://$GH_PAT@github.com/oyran1970/amsterdam_alarm.git gh-pages
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
