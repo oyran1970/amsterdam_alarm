@@ -28,7 +28,9 @@ jobs:
       
     - name: Ensure log directory exists
       run: mkdir -p log
-
+    - name: Allow Git safe directory
+      run: git config --global --add safe.directory /github/workspace
+  
     - name: Commit and push log (gh-pages)
       uses: ad-m/github-push-action@v0.5.0
       with:
