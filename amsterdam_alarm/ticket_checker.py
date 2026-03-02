@@ -1,73 +1,69 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from twilio.rest import Client
+import subprocess
 
 # --- KONFIGURASJON ---
-URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
-LOG_ENDPOINT = "https://your-log-endpoint.com/log"  # Sett inn din faste logg-URL
-TWILIO_ACCOUNT_SID = "your_account_sid"
-TWILIO_AUTH_TOKEN = "your_auth_token"
-TWILIO_FROM_NUMBER = "+1234567890"
-TWILIO_TO_NUMBER = "+47XXXXXXXX"
+LOG_PATH = "log/ticket_checker.log"
+GH_PAGES_BRANCH = "gh-pages"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")  # sett i Actions secrets
+REPO = "oyran1970/amsterdam_alarm"
 
-# --- FUNKSJONER ---
-def send_sms(message):
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+TWILIO_FROM = os.environ.get("TWILIO_FROM")  # Twilio-nummer
+TWILIO_TO = os.environ.get("TWILIO_TO")      # Ditt nummer
+
+TARGET_URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
+
+# --- HENT DATA FRA NETT ---
+try:
+    r = requests.get(TARGET_URL)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    # Eksempel: finn available og sold, juster etter nettsiden
+    available_text = soup.find("span", class_="available").text
+    sold_text = soup.find("span", class_="sold").text
+    available = int(available_text.strip())
+    sold = int(sold_text.strip())
+except Exception as e:
+    print("Feil ved henting/parsing:", e)
+    available = sold = 0
+
+# --- LOGGING TIL FIL ---
+os.makedirs("log", exist_ok=True)
+timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+line = f"{timestamp}, Available: {available}, Sold: {sold}\n"
+
+with open(LOG_PATH, "a") as f:
+    f.write(line)
+
+print(f"Logged: {available} available, {sold} sold")
+
+# --- SEND SMS HVIS LEDIG ---
+if available > 0 and all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM, TWILIO_TO]):
     try:
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        client.messages.create(
-            body=message,
-            from_=TWILIO_FROM_NUMBER,
-            to=TWILIO_TO_NUMBER
-        )
-        print("SMS sendt:", message)
+        message = f"Billetter tilgjengelig! Available: {available}, Sold: {sold}"
+        client.messages.create(body=message, from_=TWILIO_FROM, to=TWILIO_TO)
+        print("SMS sendt!")
     except Exception as e:
-        print("Kunne ikke sende SMS:", e)
+        print("Feil ved sending av SMS:", e)
 
-def log_to_url(timestamp, available, sold):
-    try:
-        data = {"timestamp": timestamp, "available": available, "sold": sold}
-        resp = requests.post(LOG_ENDPOINT, json=data, timeout=10)
-        resp.raise_for_status()
-        print(f"Logget til URL: {data}")
-    except Exception as e:
-        print(f"Kunne ikke sende log: {e}")
-        # fallback til lokal fil
-        try:
-            import os
-            os.makedirs("log", exist_ok=True)
-            with open("log/ticket_checker.log", "a") as f:
-                f.write(f"{timestamp} | Available: {available} | Sold: {sold}\n")
-            print(f"Logget til lokal fil: {timestamp} | {available} | {sold}")
-        except Exception as e2:
-            print("Kunne ikke logge til lokal fil:", e2)
-
-def parse_ticket_info(html):
-    soup = BeautifulSoup(html, "html.parser")
-    # Tilpass selector etter faktiske nettside-elementer
-    available_elem = soup.find("span", {"id": "available"})
-    sold_elem = soup.find("span", {"id": "sold"})
-    available = int(available_elem.text.strip()) if available_elem else 0
-    sold = int(sold_elem.text.strip()) if sold_elem else 0
-    return available, sold
-
-# --- HOVEDLOGIKK ---
-def main():
-    try:
-        r = requests.get(URL, timeout=10)
-        r.raise_for_status()
-        available, sold = parse_ticket_info(r.text)
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-
-        log_to_url(timestamp, available, sold)
-
-        if available > 0:
-            send_sms(f"Billett tilgjengelig! {available} ledige, {sold} solgt. {URL}")
-
-        print(f"Ferdig kjøring: {timestamp} | Available: {available} | Sold: {sold}")
-
-    except Exception as e:
-        print("Feil under kjøring:", e)
-
-if __name__ == "__main__":
-    main()
+# --- PUSH TIL GH-PAGES FOR OPPDATERING AV LOGG ---
+try:
+    subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
+    subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+    subprocess.run(["git", "checkout", GH_PAGES_BRANCH], check=True)
+    subprocess.run(["git", "add", LOG_PATH], check=True)
+    subprocess.run(["git", "commit", "-m", f"Update ticket log {timestamp}"], check=True)
+    subprocess.run([
+        "git", "push",
+        f"https://x-access-token:{GITHUB_TOKEN}@github.com/{REPO}.git",
+        GH_PAGES_BRANCH
+    ], check=True)
+    print("Logg pushet til GitHub Pages!")
+except subprocess.CalledProcessError as e:
+    print("Feil ved push til GitHub Pages:", e)
