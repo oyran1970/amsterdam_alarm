@@ -18,6 +18,8 @@ jobs:
 
       - run: pip install -r requirements.txt
       - run: playwright install --with-deps
+      - name: List files
+        run: ls -R
       - name: Run ticket checker
         run: /usr/bin/python3 amsterdam_alarm/ticket_checker.py
         env:
