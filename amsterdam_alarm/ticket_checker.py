@@ -1,49 +1,60 @@
 import requests
 from bs4 import BeautifulSoup
-import datetime
-import os
+from datetime import datetime
+from twilio.rest import Client
 
-# --- KONFIGURASJON ---
-URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"  # siden vi scrapes
-LOG_ENDPOINT = None  # Sett til din URL hvis du har en, f.eks. "https://webhook.site/xxxx"
+# Konfigurasjon
+TICKET_URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
+LOG_URL = "https://your-log-endpoint.com/log"  # Sett inn din faste logg-URL
+TWILIO_ACCOUNT_SID = "your_account_sid"
+TWILIO_AUTH_TOKEN = "your_auth_token"
+TWILIO_FROM_NUMBER = "+1234567890"
+TWILIO_TO_NUMBER = "+47xxxxxxxx"
 
-# --- SIKKER LOKAL LOGG ---
-os.makedirs("log", exist_ok=True)  # lager logg-mappen hvis den ikke finnes
-
-try:
-    # --- HENT SIDEN ---
-    response = requests.get(URL)
+def fetch_ticket_info():
+    response = requests.get(TICKET_URL)
     response.raise_for_status()
-except Exception as e:
-    print(f"Feil ved henting av siden: {e}")
-    exit(1)
+    soup = BeautifulSoup(response.text, "html.parser")
 
-soup = BeautifulSoup(response.text, "html.parser")
+    # Eksempel selectors – tilpass hvis nettsiden endrer seg
+    available_text = soup.select_one(".available").get_text(strip=True)
+    sold_text = soup.select_one(".sold").get_text(strip=True)
 
-# --- FINN ANTALL LEDIGE OG SOLGTE BILLETTER ---
-available_tag = soup.select_one(".available-count")  # oppdater med riktig CSS-selector
-sold_tag = soup.select_one(".sold-count")            # oppdater med riktig CSS-selector
+    available = int(available_text.split()[0])
+    sold = int(sold_text.split()[0])
+    return available, sold
 
-available = int(available_tag.text.strip()) if available_tag else 0
-sold = int(sold_tag.text.strip()) if sold_tag else 0
-
-# --- LAG TIMESTAMP ---
-timestamp = datetime.datetime.utcnow().isoformat()
-
-# --- LOGG TIL URL (VALGFRI) ---
-if LOG_ENDPOINT:
-    log_data = {"timestamp": timestamp, "available": available, "sold": sold}
+def log_to_url(timestamp, available, sold):
+    payload = {
+        "timestamp": timestamp,
+        "available": available,
+        "sold": sold
+    }
     try:
-        r = requests.post(LOG_ENDPOINT, json=log_data)
-        if r.status_code == 200:
-            print(f"Logged to URL: {available} available, {sold} sold at {timestamp}")
-        else:
-            print(f"Feil ved logging til URL: {r.status_code} {r.text}")
+        response = requests.post(LOG_URL, json=payload)
+        response.raise_for_status()
+        print(f"Logged to URL: {payload}")
     except Exception as e:
-        print(f"Kunne ikke sende log til URL: {e}")
+        print(f"Kunne ikke sende log: {e}")
 
-# --- LOKAL LOGGING ---
-log_file_path = "log/ticket_checker.log"
-with open(log_file_path, "a") as f:
-    f.write(f"{timestamp}, {available}, {sold}\n")
-    print(f"Logged locally: {available} available, {sold} sold at {timestamp}")
+def send_sms(available):
+    if available > 0:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        message = client.messages.create(
+            body=f"Billett tilgjengelig! {available} ledige.",
+            from_=TWILIO_FROM_NUMBER,
+            to=TWILIO_TO_NUMBER
+        )
+        print(f"SMS sendt: {message.sid}")
+
+def main():
+    try:
+        available, sold = fetch_ticket_info()
+        timestamp = datetime.utcnow().isoformat()
+        log_to_url(timestamp, available, sold)
+        send_sms(available)
+    except Exception as e:
+        print(f"Feil under kjøring: {e}")
+
+if __name__ == "__main__":
+    main()
