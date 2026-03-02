@@ -1,84 +1,61 @@
-import os
-from datetime import datetime
-from pathlib import Path
-import requests
+# amsterdam_alarm/ticket_checker.py
+
 from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+import requests
+import datetime
 from twilio.rest import Client
 
-# ------------------------
-# Konfigurasjon
-# ------------------------
-TICKET_URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
-LOG_URL = "https://oyran1970.github.io/amsterdam_alarm/log/ticket_checker.log"
+# Twilio-konfigurasjon (behold dine eksisterende verdier)
+account_sid = "YOUR_TWILIO_SID"
+auth_token = "YOUR_TWILIO_TOKEN"
+from_number = "+1234567890"
+to_number = "+0987654321"
 
-# Twilio
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_FROM = os.getenv("TWILIO_FROM")
-TWILIO_TO = os.getenv("TWILIO_TO")
+# URL for billettsiden
+ticket_url = "URL_TIL_BILLETSIDE"
+# URL for loggfil (GitHub Pages)
+log_url = "https://oyran1970.github.io/amsterdam_alarm/log/ticket_checker.log"
 
-# Lokalt logg
-LOG_DIR = Path("log")
-LOG_DIR.mkdir(exist_ok=True)
-LOCAL_LOG_FILE = LOG_DIR / "ticket_checker.log"
-
-# ------------------------
-# Hent billettstatus
-# ------------------------
+# Hent HTML med Playwright
 with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_page()
-    page.goto(TICKET_URL)
-    try:
-        page.wait_for_selector(".available", timeout=5000)
-        page.wait_for_selector(".sold", timeout=5000)
-    except:
-        print("Fant ikke .available eller .sold på siden")
-        browser.close()
-        exit(1)
-
-    available = int(page.query_selector(".available").inner_text().strip())
-    sold = int(page.query_selector(".sold").inner_text().strip())
+    page.goto(ticket_url)
+    html = page.content()
     browser.close()
 
-# ------------------------
-# Timestamp
-# ------------------------
-timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+soup = BeautifulSoup(html, "html.parser")
 
-# ------------------------
-# Logg til lokalt fil
-# ------------------------
-with open(LOCAL_LOG_FILE, "a") as f:
-    f.write(f"{timestamp}, Available: {available}, Sold: {sold}\n")
+# Sjekk om .available og .sold finnes
+available_elem = soup.select_one(".available")
+sold_elem = soup.select_one(".sold")
 
-print(f"Logged locally: {available} available, {sold} sold")
+if available_elem and sold_elem:
+    available = int(available_elem.text.strip())
+    sold = int(sold_elem.text.strip())
+    print(f"Available: {available}, Sold: {sold}")
+else:
+    print("Fant ikke .available eller .sold på siden")
+    available = sold = None
 
-# ------------------------
-# Logg til GitHub Pages URL
-# ------------------------
+# Logg til GitHub Pages (legg til ny rad med timestamp)
+timestamp = datetime.datetime.now().isoformat()
+log_line = f"{timestamp}, Available: {available}, Sold: {sold}\n"
+
 try:
-    log_entry = f"{timestamp}, Available: {available}, Sold: {sold}\n"
-    response = requests.post(LOG_URL, data=log_entry)
-    if response.ok:
-        print(f"Logged to URL: {LOG_URL}")
-    else:
-        print(f"Kunne ikke logge til URL, status: {response.status_code}")
+    r = requests.get(log_url)
+    if r.status_code == 200:
+        log_content = r.text + log_line
+        # Skriv tilbake til GitHub (du kan bruke push action som før)
+        with open("log/ticket_checker.log", "a") as f:
+            f.write(log_line)
 except Exception as e:
-    print(f"Kunne ikke sende log: {e}")
+    print("Kunne ikke sende log:", e)
 
-# ------------------------
-# SMS-varsling ved ledige billetter
-# ------------------------
-if available > 0 and all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM, TWILIO_TO]):
-    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    message = f"Det finnes nå {available} billetter! Solgt: {sold}. Sjekk {TICKET_URL}"
-    try:
-        sms = client.messages.create(
-            body=message,
-            from_=TWILIO_FROM,
-            to=TWILIO_TO
-        )
-        print(f"SMS sendt, SID: {sms.sid}")
-    except Exception as e:
-        print(f"Feilet å sende SMS: {e}")
+# Send SMS hvis billetter tilgjengelig
+if available and available > 0:
+    client = Client(account_sid, auth_token)
+    message = f"Billett(er) tilgjengelig: {available}"
+    client.messages.create(body=message, from_=from_number, to=to_number)
+    print("SMS sendt")
