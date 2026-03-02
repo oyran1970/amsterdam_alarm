@@ -1,2 +1,2 @@
-# requirements.txt
-# tom eller bare for fremtidige biblioteker
+playwright==1.40.0
+twilio==8.15.0
