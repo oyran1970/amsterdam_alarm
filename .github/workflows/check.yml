@@ -29,7 +29,7 @@ jobs:
 
       # Installer avhengigheter
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r ./requirements.txt
 
       # Installer Playwright-nettlesere
       - name: Install Playwright browsers
