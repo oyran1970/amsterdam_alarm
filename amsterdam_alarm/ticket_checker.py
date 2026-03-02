@@ -1,52 +1,36 @@
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
-from twilio.rest import Client
-import os
+name: Ticket Checker
 
-# ---------- KONFIGURASJON ----------
-URL = "https://atleta.cc/e/nhIVWn50Rcez/resale"
-LOG_FILE = "log/ticket_checker.log"  # må eksistere som mappe
-TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
-TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
-FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER")
-TO_NUMBER = os.environ.get("TWILIO_TO_NUMBER")
-# -----------------------------------
+on:
+  workflow_dispatch:  # gir manuell trigger
+  schedule:
+    - cron: '*/5 * * * *'  # kjører hvert 5. minutt, kan justeres
 
-def check_tickets():
-    resp = requests.get(URL)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
+jobs:
+  check_tickets:
+    runs-on: ubuntu-latest
 
-    # Finn elementene med ticket info (tilpass etter riktig HTML)
-    available = sold = 0
-    for item in soup.select(".ticket-info"):  # tilpass selector
-        text = item.get_text()
-        if "Available" in text:
-            available = int(text.split()[0])
-        elif "Sold" in text:
-            sold = int(text.split()[0])
-    return available, sold
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-def log_tickets(available, sold):
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    line = f"{timestamp} | Available: {available} | Sold: {sold}\n"
-    with open(LOG_FILE, "a") as f:
-        f.write(line)
-    print(f"Logged: {line.strip()}")
+      - name: Set safe directory
+        run: git config --global --add safe.directory /github/workspace
 
-def send_sms(available):
-    if available > 0 and all([TWILIO_SID, TWILIO_TOKEN, FROM_NUMBER, TO_NUMBER]):
-        client = Client(TWILIO_SID, TWILIO_TOKEN)
-        msg = f"Tickets available! ({available} left)"
-        client.messages.create(body=msg, from_=FROM_NUMBER, to=TO_NUMBER)
-        print("SMS sent!")
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-if __name__ == "__main__":
-    try:
-        available, sold = check_tickets()
-        log_tickets(available, sold)
-        send_sms(available)
-    except Exception as e:
-        print("Error:", e)
+      - name: Install dependencies
+        run: pip install -r amsterdam_alarm/requirements.txt
+
+      - name: Run ticket checker
+        run: python amsterdam_alarm/ticket_checker.py
+
+      - name: Commit & push log to GitHub Pages
+        uses: ad-m/github-push-action@v0.5.0
+        with:
+          branch: gh-pages
+          directory: log
+          commit-message: "Update ticket log"
+          force: true
