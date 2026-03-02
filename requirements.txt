@@ -1,0 +1,2 @@
+# requirements.txt
+# tom eller bare for fremtidige biblioteker
