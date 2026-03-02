@@ -1,37 +1,32 @@
 name: Ticket Checker
 
 on:
-  workflow_dispatch: # lar deg kjøre workflow manuelt
+  workflow_dispatch: # manuell trigger
+  schedule:
+    - cron: '*/5 * * * *' # kjører hvert 5. minutt (UTC)
 
 jobs:
-  update_log:
+  check_tickets:
     runs-on: ubuntu-latest
     steps:
-      # Sjekk ut repoet
-      - name: Checkout repository
+      - name: Sjekk ut repo
         uses: actions/checkout@v3
 
-      # Sett opp Python
-      - name: Setup Python
+      - name: Sett opp Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Installer dependencies
-      - name: Install dependencies
-        run: pip install -r amsterdam_alarm/requirements.txt
+      - name: Installer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # Kjør ticket_checker script
-      - name: Run ticket checker
+      - name: Kjør ticket_checker
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
+          LOG_URL: ${{ secrets.LOG_URL }}
         run: python amsterdam_alarm/ticket_checker.py
-
-      # Konfigurer safe directory for git
-      - name: Configure git safe directory
-        run: git config --global --add safe.directory /github/workspace
-
-      # Push eventuelle logg-oppdateringer til gh-pages
-      - name: Push log changes
-        uses: ad-m/github-push-action@v0.5.0
-        with:
-          branch: gh-pages
-          github_token: ${{ secrets.GITHUB_TOKEN }}
