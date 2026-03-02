@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-import random  # Kun til testing, fjern når du har egen sjekk
+import random  # Til testing, fjern når du bruker egen sjekk
 
 # --- Oppsett av logg ---
 log_dir = "amsterdam_alarm"
@@ -19,17 +19,17 @@ logging.basicConfig(
 def sjekk_billetter():
     """
     Bytt ut denne funksjonen med faktisk kode som sjekker ledige billetter.
-    Returnerer True hvis ledige billetter finnes, False ellers.
+    Returnerer antall ledige billetter (0 = ingen ledige).
     """
-    # For testing: tilfeldig resultat
-    return random.choice([True, False])
+    # For testing: tilfeldig antall
+    return random.choice([0, 0, 1, 2, 3])  # Flere 0 for å teste "ingen billetter"
 
 # --- Hovedfunksjon ---
 def main():
     try:
-        ledige = sjekk_billetter()
-        if ledige:
-            logging.info("Ledige billetter funnet!")
+        antall_ledige = sjekk_billetter()
+        if antall_ledige > 0:
+            logging.info(f"Ledige billetter funnet: {antall_ledige} stk")
             # Her kan du sende SMS via Twilio
         else:
             logging.info("Ingen ledige billetter denne gangen.")
