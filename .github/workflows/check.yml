@@ -19,10 +19,10 @@ jobs:
       - run: pip install -r requirements.txt
       - run: playwright install --with-deps
 
-      - name: Run ticket checker
-        run: python3 amsterdam_alarm/ticket_checker.py
-        env:
-          TWILIO_SID: ${{ secrets.TWILIO_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
-          YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
+- name: Run ticket checker
+  run: /usr/bin/python3 amsterdam_alarm/ticket_checker.py
+  env:
+    TWILIO_SID: ${{ secrets.TWILIO_SID }}
+    TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+    TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
+    YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
