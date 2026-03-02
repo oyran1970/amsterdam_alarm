@@ -1,9 +1,14 @@
 from playwright.sync_api import sync_playwright
 from twilio.rest import Client
 import os
-
 print("Ticket checker starter...")
 
+try:
+    # Hele eksisterende kode for Playwright + Twilio
+    ...
+except Exception as e:
+    print(f"Exception fanget: {e}")
+    
 # --- Konfigurasjon ---
 TICKET_URL = "https://www.tcsamsterdammarathon.eu/ticket-resale"
 
