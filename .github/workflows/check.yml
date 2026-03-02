@@ -2,51 +2,51 @@ name: Check Tickets
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # hvert 5. minutt (UTC)
-  workflow_dispatch:
+    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
+  workflow_dispatch:       # gjør det mulig å kjøre manuelt
 
 jobs:
   check:
     runs-on: ubuntu-latest
 
     steps:
-      # Hent repo
+      # 1️⃣ Hent repo
       - uses: actions/checkout@v4
 
-      # Sett opp Python
+      # 2️⃣ Sett opp Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # Installer dependencies
-      - run: pip install --upgrade pip
-      - run: pip install -r requirements.txt
+      # 3️⃣ Installer dependencies
+      - run: |
+          pip install -r requirements.txt
+          npx playwright install --with-deps
 
-      # Installer Playwright
-      - run: npx playwright install --with-deps
+      # 4️⃣ Lag loggmappe hvis den ikke finnes
+      - name: Prepare log folder
+        run: mkdir -p log
 
-      # List filer (debug)
-      - run: ls -R
-
-      # Kjør ticket_checker.py og logg
+      # 5️⃣ Kjør ticket_checker.py og append log
       - name: Run ticket checker
         run: |
-          python3 amsterdam_alarm/ticket_checker.py >> amsterdam_alarm/ticket_checker.log 2>&1
-          echo "Run completed at $(date)" >> amsterdam_alarm/ticket_checker.log
+          python3 amsterdam_alarm/ticket_checker.py >> log/ticket_checker.log 2>&1
         env:
           TWILIO_SID: ${{ secrets.TWILIO_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
           YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
 
-      # Push logg til gh-pages branch
+      # 6️⃣ Push log til gh-pages for permanent URL
       - name: Deploy log to GitHub Pages
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B gh-pages
           mkdir -p log
-          cp amsterdam_alarm/ticket_checker.log log/ticket_checker.log
+          cp log/ticket_checker.log log/ticket_checker.log
           git add log/ticket_checker.log
-          git commit -m "Update log"
-          git push -f origin gh-pages
+          git commit -m "Update ticket log"
+          git push -f https://$GH_PAT@github.com/oyran1970/amsterdam_alarm.git gh-pages
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
