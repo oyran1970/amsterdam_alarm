@@ -2,8 +2,8 @@ name: Check Tickets
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # hver 5. minutt (UTC)
-  workflow_dispatch:         # gjør det mulig å starte manuelt
+    - cron: "*/5 * * * *"   # hvert 5. minutt (UTC)
+  workflow_dispatch:
 
 jobs:
   check:
@@ -22,14 +22,13 @@ jobs:
       - run: pip install --upgrade pip
       - run: pip install -r requirements.txt
 
-      # Installer Playwright med system-avhengigheter
+      # Installer Playwright
       - run: npx playwright install --with-deps
 
-      # List alle filer (for debugging)
-      - name: List files
-        run: ls -R
+      # List filer (debug)
+      - run: ls -R
 
-      # Kjør ticket_checker.py og logg output til fil
+      # Kjør ticket_checker.py og logg
       - name: Run ticket checker
         run: |
           python3 amsterdam_alarm/ticket_checker.py >> amsterdam_alarm/ticket_checker.log 2>&1
@@ -40,9 +39,14 @@ jobs:
           TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
           YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
 
-      # Last opp loggfilen som artifact
-      - name: Upload log file
-        uses: actions/upload-artifact@v3
-        with:
-          name: ticket_checker_log
-          path: amsterdam_alarm/ticket_checker.log
+      # Push logg til gh-pages branch
+      - name: Deploy log to GitHub Pages
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B gh-pages
+          mkdir -p log
+          cp amsterdam_alarm/ticket_checker.log log/ticket_checker.log
+          git add log/ticket_checker.log
+          git commit -m "Update log"
+          git push -f origin gh-pages
