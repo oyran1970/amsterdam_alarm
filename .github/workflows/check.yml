@@ -25,6 +25,9 @@ jobs:
 
     - name: Run ticket checker
       run: python amsterdam_alarm/ticket_checker.py
+      
+    - name: Ensure log directory exists
+      run: mkdir -p log
 
     - name: Commit and push log (gh-pages)
       uses: ad-m/github-push-action@v0.5.0
