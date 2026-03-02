@@ -47,3 +47,4 @@ jobs:
           directory: log
           force: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          pre-commit: git config --global --add safe.directory /github/workspace
