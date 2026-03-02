@@ -1,45 +1,45 @@
-name: Check Tickets
+# amsterdam_alarm/ticket_checker.py
 
-on:
-  schedule:
-    - cron: "*/5 * * * *"  # kjør hvert 5. minutt
-  workflow_dispatch:       # gjør det mulig å starte manuelt
+print("Ticket checker starter...")
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
+# --- Playwright del ---
+try:
+    from playwright.sync_api import sync_playwright
+    print("Playwright importert OK")
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        # Eksempel: gå til hovedsiden
+        page.goto("https://www.tcsamsterdammarathon.eu/ticket-resale")
+        print(f"Side lastet: {page.title()}")
+        browser.close()
+        print("Playwright-sjekk fullført")
+except Exception as e:
+    print(f"Playwright feilet: {e}")
 
-    steps:
-      # Sjekk ut repo
-      - uses: actions/checkout@v4
+# --- Twilio del ---
+try:
+    from twilio.rest import Client
 
-      # Sett opp Python
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    # Hent secrets fra miljøvariabler
+    import os
+    sid = os.getenv("TWILIO_SID")
+    token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_NUMBER")
+    to_number = os.getenv("YOUR_NUMBER")
 
-      # Installer dependencies fra requirements.txt
-      - run: pip install -r requirements.txt
+    if not all([sid, token, from_number, to_number]):
+        print("Twilio-miljøvariabler mangler, hopper over SMS")
+    else:
+        client = Client(sid, token)
+        message = client.messages.create(
+            body="Test fra ticket_checker.py",
+            from_=from_number,
+            to=to_number
+        )
+        print(f"Twilio melding sendt, SID: {message.sid}")
+except Exception as e:
+    print(f"Twilio feilet: {e}")
 
-      # Installer Playwright browsers via python-modulen
-      - name: Install Playwright browsers
-        run: python -m playwright install
-
-      # Valgfritt: installer ekstra Ubuntu-dependencies hvis du skal kjøre GUI/browser tests
-      - name: Install Playwright system dependencies
-        run: sudo apt-get update && sudo apt-get install -y \
-          libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-          libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpangocairo-1.0-0
-
-      # Debug: se hvilke filer som finnes
-      - name: List files
-        run: ls -R
-
-      # Kjør ticket_checker.py
-      - name: Run ticket checker
-        run: /usr/bin/python3 amsterdam_alarm/ticket_checker.py
-        env:
-          TWILIO_SID: ${{ secrets.TWILIO_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
-          YOUR_NUMBER: ${{ secrets.YOUR_NUMBER }}
+print("Ticket checker ferdig")
